@@ -1,0 +1,40 @@
+name: Preview GitHub OIDC subject
+
+on:
+  workflow_dispatch:
+    inputs:
+      github_environment:
+        description: Leave blank for branch/ref subject; enter an Environment name for environment subject
+        required: false
+        default: ""
+      audience:
+        description: OIDC audience used for the preview
+        required: true
+        default: sts.amazonaws.com
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  preview-branch:
+    if: ${{ inputs.github_environment == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Print actual non-secret OIDC claims
+        run: python scripts/print_oidc_subject.py --audience "${{ inputs.audience }}"
+
+  preview-environment:
+    if: ${{ inputs.github_environment != '' }}
+    environment:
+      name: ${{ inputs.github_environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Print actual non-secret OIDC claims
+        run: python scripts/print_oidc_subject.py --audience "${{ inputs.audience }}"

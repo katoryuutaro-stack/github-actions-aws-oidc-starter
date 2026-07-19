@@ -1,0 +1,17 @@
+aws_region = "ap-northeast-1"
+
+github_repository          = "YOUR_OWNER/YOUR_REPOSITORY"
+github_subject_mode        = "immutable"
+github_repository_owner_id = "REPLACE_WITH_NUMERIC_OWNER_ID"
+github_repository_id       = "REPLACE_WITH_NUMERIC_REPOSITORY_ID"
+
+github_ref         = "refs/heads/main"
+github_environment = null
+
+# Safest fallback for custom subject templates: run the subject-preview workflow
+# and set the exact printed value here. This overrides generated subjects.
+# github_oidc_subject_override = "repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main"
+
+role_name = "github-actions-oidc-starter"
+create_oidc_provider = true
+# existing_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"

@@ -1,0 +1,116 @@
+name: AWS OIDC identity check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: aws-oidc-check-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  identity-branch:
+    if: ${{ vars.GITHUB_ENVIRONMENT == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate required repository variables
+        shell: bash
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          EXPECTED_AWS_ACCOUNT_ID: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          for name in AWS_ROLE_ARN AWS_REGION EXPECTED_AWS_ACCOUNT_ID; do
+            value="${!name:-}"
+            if [[ -z "$value" ]]; then
+              echo "Missing repository variable: $name" >&2
+              exit 2
+            fi
+          done
+          [[ "$EXPECTED_AWS_ACCOUNT_ID" =~ ^[0-9]{12}$ ]] || {
+            echo "EXPECTED_AWS_ACCOUNT_ID must contain exactly 12 digits" >&2
+            exit 2
+          }
+
+      - name: Configure temporary AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-oidc-${{ github.run_id }}
+          allowed-account-ids: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+          unset-current-credentials: true
+
+      - name: Verify caller identity
+        shell: bash
+        env:
+          EXPECTED_AWS_ACCOUNT_ID: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          arn="$(aws sts get-caller-identity --query Arn --output text)"
+          test "$account_id" = "$EXPECTED_AWS_ACCOUNT_ID"
+          case "$arn" in
+            arn:aws:sts::*:assumed-role/*) ;;
+            *) echo "Unexpected caller ARN shape" >&2; exit 3 ;;
+          esac
+          echo "OIDC_AUTHENTICATION=PASS"
+
+  identity-environment:
+    if: ${{ vars.GITHUB_ENVIRONMENT != '' }}
+    environment:
+      name: ${{ vars.GITHUB_ENVIRONMENT }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate required repository variables
+        shell: bash
+        env:
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          EXPECTED_AWS_ACCOUNT_ID: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+          GITHUB_ENVIRONMENT: ${{ vars.GITHUB_ENVIRONMENT }}
+        run: |
+          set -euo pipefail
+          for name in AWS_ROLE_ARN AWS_REGION EXPECTED_AWS_ACCOUNT_ID GITHUB_ENVIRONMENT; do
+            value="${!name:-}"
+            if [[ -z "$value" ]]; then
+              echo "Missing repository variable: $name" >&2
+              exit 2
+            fi
+          done
+          [[ "$EXPECTED_AWS_ACCOUNT_ID" =~ ^[0-9]{12}$ ]] || {
+            echo "EXPECTED_AWS_ACCOUNT_ID must contain exactly 12 digits" >&2
+            exit 2
+          }
+
+      - name: Configure temporary AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@d979d5b3a71173a29b74b5b88418bfda9437d885 # v6.1.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-oidc-${{ github.run_id }}
+          allowed-account-ids: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+          unset-current-credentials: true
+
+      - name: Verify caller identity
+        shell: bash
+        env:
+          EXPECTED_AWS_ACCOUNT_ID: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          arn="$(aws sts get-caller-identity --query Arn --output text)"
+          test "$account_id" = "$EXPECTED_AWS_ACCOUNT_ID"
+          case "$arn" in
+            arn:aws:sts::*:assumed-role/*) ;;
+            *) echo "Unexpected caller ARN shape" >&2; exit 3 ;;
+          esac
+          echo "OIDC_AUTHENTICATION=PASS"
