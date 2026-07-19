@@ -22,10 +22,10 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 }
 FORBIDDEN_STATIC_NAMES = {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"}
 APPROVED_ACTIONS = {
-    "actions/checkout": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",  # v6.0.2
-    "actions/setup-python": "a309ff8b426b58ec0e2a45f0f869d46889d02405",  # v6.2.0
-    "hashicorp/setup-terraform": "dfe3c3f87815947d99a8997f908cb6525fc44e9e",  # v4.0.1
-    "aws-actions/configure-aws-credentials": "d979d5b3a71173a29b74b5b88418bfda9437d885",  # v6.1.1
+    "actions/checkout": "de0fac2e4500dabe0009e67214ff5f5447ce83dd",
+    "actions/setup-python": "a309ff8b426b58ec0e2a45f0f869d46889d02405",
+    "hashicorp/setup-terraform": "dfe3c3f87815947d99a8997f908cb6525fc44e9e",
+    "aws-actions/configure-aws-credentials": "d979d5b3a71173a29b74b5b88418bfda9437d885",
 }
 APPROVED_TERRAFORM_VERSION = "1.15.5"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -114,13 +114,23 @@ def validate_workflow(path: Path, root: Path) -> list[str]:
                 with_data = step.get("with", {})
                 version = with_data.get("terraform_version") if isinstance(with_data, dict) else None
                 if version != APPROVED_TERRAFORM_VERSION:
-                    errors.append(f"{location}: terraform_version must be {APPROVED_TERRAFORM_VERSION}")
+                    errors.append(
+                        f"{location}: terraform_version must be {APPROVED_TERRAFORM_VERSION}"
+                    )
     return errors
 
 
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
-    required = [root / "README.md", root / "terraform" / "main.tf", root / ".github" / "workflows" / "ci.yml", root / ".github" / "workflows" / "aws-oidc-check.yml", root / ".github" / "workflows" / "oidc-subject-preview.yml", root / "scripts" / "resolve_github_identity.py", root / "scripts" / "print_oidc_subject.py"]
+    required = [
+        root / "README.md",
+        root / "terraform" / "main.tf",
+        root / ".github" / "workflows" / "ci.yml",
+        root / ".github" / "workflows" / "aws-oidc-check.yml",
+        root / ".github" / "workflows" / "oidc-subject-preview.yml",
+        root / "scripts" / "resolve_github_identity.py",
+        root / "scripts" / "print_oidc_subject.py",
+    ]
     for path in required:
         if not path.exists():
             errors.append(f"missing required file: {path.relative_to(root)}")
